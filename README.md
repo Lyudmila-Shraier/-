@@ -1,135 +1,27 @@
-* Проект «Секреты Тёмнолесья»
- * Цель проекта: изучить влияние характеристик игроков и их игровых персонажей 
- * на покупку внутриигровой валюты «райские лепестки», а также оценить 
- * активность игроков при совершении внутриигровых покупок
- *  
- * Автор: Шрайер Людмила
- * Дата: 04.09.2025
-*/
-
--- Часть 1. Исследовательский анализ данных
--- Задача 1. Исследование доли платящих игроков
--- 1.1. Доля платящих пользователей по всем данным:
-SELECT COUNT(id) AS count_id, 
-SUM(payer) AS count_pay,
-SUM(payer)::float / COUNT(id) AS dola
-FROM fantasy.users;
-
--- 1.2. Доля платящих пользователей в разрезе расы персонажа:
-SELECT u.race_id, 
-r.race,
-SUM(u.payer) AS count_pay,
-COUNT(u.id) AS count_id,
-SUM(u.payer)::float / COUNT(u.id) AS dola
-FROM fantasy.users AS u
-LEFT JOIN fantasy.race AS r USING (race_id)
-GROUP BY u.race_id, r.race;
--- Задача 2. Исследование внутриигровых покупок
--- 2.1. Статистические показатели по полю amount:
-SELECT COUNT(transaction_id),
-SUM(amount),
-MIN(amount),
-MAX(amount),
-AVG(amount) AS avg_amount,
-PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY amount) AS median, 
-STDDEV(amount) AS stand_dev
-FROM fantasy.events -- С нулевыми покупками
-UNION
-SELECT COUNT(transaction_id),
-SUM(amount),
-MIN(amount),
-MAX(amount),
-AVG(amount) AS avg_amount,
-PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY amount) AS median,
-STDDEV(amount) AS stand_dev
-FROM fantasy.events
-WHERE amount > 0;   -- Без нулевых покупок (добавила сравнение)
-
--- 2.2: Аномальные нулевые покупки:
-SELECT 
-COUNT(amount) AS count_amount,
-COUNT(amount)::real / (select COUNT(transaction_id) FROM fantasy.events)::real AS dola
-FROM fantasy.events
-WHERE amount = 0;    
+Проект «Секреты Темнолесья»
+Цель проекта — изучить влияние характеристик игроков и их игровых персонажей на покупку внутриигровой валюты «райские лепестки», а также оценить активность игроков при совершении внутриигровых покупок
 
 
--- 2.3: Популярные эпические предметы:
-with 
-dla_item as (select e.item_code,
-i.game_items,
-COUNT(e.item_code) as count_item
-FROM fantasy.events AS e
-LEFT JOIN fantasy.items AS i USING (item_code)
-WHERE amount <> 0
-group by e.item_code, i.game_items
-),
-dla_id as (select item_code,
-COUNT(distinct id) as count_id
-FROM fantasy.events
-WHERE amount <> 0
-group by item_code
-)
-SELECT distinct it.item_code,
-it.game_items,     
-it.count_item AS absolut,
-it.count_item::float / (select COUNT(transaction_id) FROM fantasy.events WHERE amount <> 0) as otnosit,
-i.count_id::float / (select COUNT(distinct id) FROM fantasy.events WHERE amount <> 0) as dola_id
-FROM dla_item AS it
-LEFT JOIN dla_id AS i USING (item_code)
-ORDER BY absolut DESC;
+Часть 3. Выводы и аналитические комментарии
+Задание. В заключительной части проекта напишите выводы и аналитические комментарии по полученным в проекте результатам. Отметьте только самые важные моменты — в выводах достаточно одного-двух предложений по каждой задаче.
+1. Результаты исследовательского анализа данных:
+1.1. Какая доля платящих игроков характерна для всей игры и как раса персонажа влияет на изменение этого показателя?
+Доля платящих составляет 0,18, что составляет практически 1/5 часть всех пользователей. Самая популярная раса среди платящих - “Demon” с долей 0,19, где количество игроков в разрезе рас самое минимальное - 1229.
+1.2. Сколько было совершено внутриигровых покупок и что можно сказать об их стоимости (минимум и максимум, есть ли различие между средним значением и медианой, какой разброс данных)?
+Количество покупок - 1 307 678. Самой низкой стоимостью является 0, а самой высокой - 486 615.1. В среднем пользователи покупают 525.69 райских лепестков, но медианой является 74,86, что говорит о средней платежеспособности пользователей. Тут мы видем, что стоимости на покупки сильно разняться. Об этом говорит и стандартное отклонение, которое составляет 2 517.35  райских лепестков
+1.3. Есть ли аномальные покупки по стоимости? Если есть, то сколько их?
+Аномальних покупок не так много - 907 штук. Что меньше 0,0007 от общего числа. Они не сильно влияют на результаты исследований, но хорошо видны при сравнивании с абсолютными значениями 
+1.4. Есть ли среди эпических предметов популярные, которые покупают чаще всего? 
+Самые популярные предметы “Book of Legends” и “Bag of Holding”. Их абсолютное количество 1 004 516 и 271 875 соответственно. Доля от общего числа транзакций составляет 0.77 и 0.21, а доля игроков, которая хоть раз купила такой предмет 0.88  и 0.87
+2. Результаты решения ad hoc задачи
+Существует ли зависимость активности игроков по совершению внутриигровых покупок от расы персонажа?
+В среднем больше всего покупок делают игроки, играющие за расу “Human” - 121 покупки. Однако игроки расы “Northman” имеют самую высокую среднюю стоимо (761.47) и  среднюю суммарную стоимость всех покупок (62518.17). Интересно то, что средняя стоимость покупок для расы “Human” - 403.07 - является самой низкой среди всех. 
+Вывод: гипотезу нельзя подтвердить. Доступные цены привлекают игроков, а значит они и совершают больше покупок. Однако игрокам, играющих за расу “Northman” требуется вкладывать больше средств для улучшения своего персонажа и иметь больше возможностей  
 
--- Часть 2. Решение ad hoc-задачи
--- Задача: Зависимость активности игроков от расы персонажа:
-WITH 
--- кол-во зарегистрированных
-count_id AS (SELECT 
-u.race_id,
-r.race,
-COUNT(u.id) AS count_u_id
-FROM fantasy.users AS u
-LEFT JOIN fantasy.race AS r USING (race_id)
-GROUP BY u.race_id, r.race
-),
---кол-во покупателей и плятящих
-count_events AS (SELECT
-u.race_id,
-r.race,
-COUNT(distinct e.id) as count_e_id,
-COUNT(distinct e.id) FILTER (WHERE u.payer = 1) AS count_payer 
-FROM fantasy.users AS u 
-LEFT JOIN fantasy.race AS r USING (race_id)
-LEFT JOIN fantasy.events AS e USING (id)
-LEFT JOIN count_id AS ci USING (race)
-WHERE amount > 0
-GROUP BY u.race_id, r.race, ci.count_u_id
-),
--- средние значения
-agregat AS (SELECT
-u.race_id,
-r.race,
-COUNT(e.transaction_id) / COUNT(distinct e.id)::float as avg_count,
-SUM(e.amount) / COUNT(e.transaction_id) as avg_amount,
-SUM(e.amount) / COUNT(distinct e.id) as avg_sum
-FROM fantasy.users AS u
-LEFT JOIN fantasy.race AS r USING (race_id)
-LEFT JOIN fantasy.events AS e USING (id)
-WHERE amount > 0
-GROUP BY u.race_id, r.race
-)
-SELECT 
-ci.race_id,
-ci.race,
-ci.count_u_id,--кол-во зарегистрированных 
-ce.count_e_id, -- кол-во игроков с покупками
-ROUND(ce.count_e_id::numeric / ci.count_u_id, 4) AS dola_id, -- доля игроков с покупками от общего количества зарегистрированных игроков
-ROUND(ce.count_payer / ce.count_e_id::numeric, 2) AS dola_payer, -- доля платящих игроков среди игроков, которые совершили внутриигровые покупки
-ROUND(a.avg_count::numeric, 2) AS avg_count, -- среднее количество покупок на игрока 
-ROUND(a.avg_amount::numeric, 2) AS avg_amount, -- средняя стоимость покупки на игрока
-ROUND(a.avg_sum::numeric, 2) AS avg_sum -- средняя суммарная стоимость всех покупок на игрока
-FROM count_id AS ci 
-FULL JOIN count_events AS ce USING (race_id)
-FULL JOIN agregat AS a USING (race_id)
-ORDER BY ci.count_u_id DESC;
+3. Общие выводы и рекомендации
+Большинство игроков стремятся приобретать как можно больше предметов и тратить меньше денег, выбирая расу, которая будет для них выгодней всего. Однако есть и такие, которые готовы платить большие деньги для прокачки персонажа. 
+Нужно уделить внимание расе “Northman”. Больше всего денег идет именно от неё. Создание определенных скидок и систем бонусов могут повысить общий доход.
+Количество не платящих игроков достаточно много. Необходимо разработать стимулирующий аппарат, чтобы увеличить продажи предметов
 
 
 Изучение влияния характеристик игроков и их игровых персонажей на покупку внутриигровой валюты «райские лепестки», а также оценка активности игроков при совершении внутриигровых покупок
